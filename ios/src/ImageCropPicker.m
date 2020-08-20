@@ -215,7 +215,7 @@ RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
             exif = [info objectForKey:UIImagePickerControllerMediaMetadata];
         }
 
-        [self processSingleImagePick:chosenImage withExif:exif withViewController:picker withSourceURL:self.croppingFile[@"sourceURL"] withLocalIdentifier:self.croppingFile[@"localIdentifier"] withFilename:self.croppingFile[@"filename"] withCreationDate:self.croppingFile[@"creationDate"] withModificationDate:self.croppingFile[@"modificationDate"]];
+        [self processSingleImagePick:chosenImage withExif:exif withViewController:picker withSourceURL:self.croppingFile[@"sourceURL"] withLocalIdentifier:self.croppingFile[@"localIdentifier"] withFilename:self.croppingFile[@"filename"] withCreationDate:self.croppingFile[@"creationDate"] withModificationDate:self.croppingFile[@"modificationDate"] imageData:nil];
     }
 }
 
@@ -697,7 +697,8 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                   withLocalIdentifier:phAsset.localIdentifier
                                          withFilename:[phAsset valueForKey:@"filename"]
                                      withCreationDate:phAsset.creationDate
-                                 withModificationDate:phAsset.modificationDate];
+                                 withModificationDate:phAsset.modificationDate
+                                            imageData:imageData];
                      });
                  }];
             }
@@ -714,7 +715,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 // when user selected single image, with camera or from photo gallery,
 // this method will take care of attaching image metadata, and sending image to cropping controller
 // or to user directly
-- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate imageData:(NSData*) imgData {
 
     if (image == nil) {
         [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
@@ -744,7 +745,14 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
             }]];
             return;
         }
-
+        
+        NSNumber *size = [NSNumber numberWithUnsignedInteger:imageResult.data.length];
+        NSNumber *compressQuality = [self.options valueForKey:@"compressImageQuality"];
+        Boolean isLossless = (compressQuality == nil || [compressQuality floatValue] >= 0.8);
+        if(imgData != nil && isLossless){
+            size = [NSNumber numberWithUnsignedInteger:imgData.length];
+        }
+        
         // Wait for viewController to dismiss before resolving, or we lose the ability to display
         // Alert.alert in the .then() handler.
         [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
@@ -756,7 +764,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                               withWidth:imageResult.width
                                              withHeight:imageResult.height
                                                withMime:imageResult.mime
-                                               withSize:[NSNumber numberWithUnsignedInteger:imageResult.data.length]
+                                               withSize:size
                                                withDuration: nil
                                                withData:[[self.options objectForKey:@"includeBase64"] boolValue] ? [imageResult.data base64EncodedStringWithOptions:0] : nil
                                                withRect:CGRectNull
